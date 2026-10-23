@@ -29,8 +29,8 @@ Client ──► Producer ──► tasks_exchange ──► [image_processing |
 ## 🚀 Ishga tushirish
 
 ```bash
-git clone https://github.com/ifarohiddin/programming-new.git
-cd programming-new/distributed_task_system
+git clone https://github.com/ifarohiddin/distributed-task-system.git
+cd distributed-task-system/distributed_task_system
 
 docker compose up --build
 ```
@@ -69,12 +69,29 @@ distributed_task_system/
 ├── docs/design.md
 ├── Dockerfile
 └── docker-compose.yml
+
+examples/
+└── restaurant_simulation/   # buyurtma → oshpaz → bildirishnoma → yetkazib berish
+```
+
+## 🍕 Qo'shimcha namuna: `examples/restaurant_simulation`
+
+RabbitMQ'da oddiy mikroservislar zanjiri: **buyurtma → oshpaz → bildirishnoma → yetkazib berish**. Bildirishnoma va yetkazib berish bosqichlarida tasodifiy xatolik simulyatsiya qilinadi va xabar `nack` bilan qayta navbatga qo'yiladi.
+
+```bash
+cd examples/restaurant_simulation
+pip install -r requirements.txt
+# RabbitMQ localhost'da ishlab turishi kerak. Har birini alohida terminalda:
+python chef_service.py
+python notification_service.py
+python delivery_service.py
+python order_creator.py
 ```
 
 ## 🌱 Rejalar
 
 - [ ] `monitor.py` metrikalarini haqiqiy RabbitMQ Management API'dan olish
-- [ ] RabbitMQ login/parolini muhit o'zgaruvchilariga ko'chirish
+- [x] RabbitMQ login/paroli muhit o'zgaruvchilaridan o'qiladi (`RABBITMQ_USER`, `RABBITMQ_PASS`, `RABBITMQ_PORT`)
 - [ ] GitHub Actions bilan testlarni avtomatlashtirish
 
 ## 👤 Muallif
