@@ -10,11 +10,10 @@
 - ✅ Publisher confirm va xabarlarni `zlib` bilan siqish
 - 📈 Flask'da yozilgan monitoring endpointi (`/metrics`)
 - 🐳 Docker Compose bilan bir buyruqda ishga tushadi (RabbitMQ + producer + 2 worker)
-- 🧪 `pytest` unit va stress testlari
 
 ## 🛠️ Texnologiyalar
 
-`Python` · `RabbitMQ (pika)` · `Docker / Docker Compose` · `Flask` · `pytest`
+`Python` · `RabbitMQ (pika)` · `Docker / Docker Compose` · `Flask`
 
 ## 🏗️ Arxitektura
 
@@ -47,13 +46,6 @@ task_id = client.submit_task("image_processing", "resize", {"image": "sample.jpg
 metrics = client.get_metrics()
 ```
 
-### Testlar
-
-```bash
-pip install -r requirements.txt
-pytest tests/
-```
-
 ## 📁 Tuzilma
 
 ```text
@@ -65,7 +57,6 @@ distributed_task_system/
 │   ├── monitor.py    # Flask /metrics
 │   ├── config.py
 │   └── utils.py
-├── tests/
 ├── docs/design.md
 ├── Dockerfile
 └── docker-compose.yml
@@ -92,6 +83,7 @@ python order_creator.py
 
 - [ ] `monitor.py` metrikalarini haqiqiy RabbitMQ Management API'dan olish
 - [x] RabbitMQ login/paroli muhit o'zgaruvchilaridan o'qiladi (`RABBITMQ_USER`, `RABBITMQ_PASS`, `RABBITMQ_PORT`)
+- [ ] `producer`/`worker` uchun `pytest` testlari yozish (hozircha testlar yo'q)
 - [ ] GitHub Actions bilan testlarni avtomatlashtirish
 
 ## 👤 Muallif
