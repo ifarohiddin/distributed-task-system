@@ -20,7 +20,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    command: python src/producer.py
+    command: python -m src.producer
     environment:
       - RABBITMQ_HOST=rabbitmq
 
@@ -29,7 +29,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    command: python src/worker.py
+    command: python -m src.worker
     environment:
       - RABBITMQ_HOST=rabbitmq
     deploy:

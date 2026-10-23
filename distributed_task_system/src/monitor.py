@@ -1,17 +1,23 @@
+import requests
 from flask import Flask, jsonify
-from config import TASK_QUEUES
+
+from src.metrics import fetch_metrics
 
 app = Flask(__name__)
 
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok"})
+
+
 @app.route("/metrics", methods=["GET"])
 def get_metrics():
-    # Dummy metrikalar (haqiqiy RabbitMQ API orqali olish kerak)
-    metrics = {
-        "queues": {q: {"length": 0} for q in TASK_QUEUES},
-        "workers": 2,
-        "processed_per_second": 0
-    }
-    return jsonify(metrics)
+    try:
+        return jsonify(fetch_metrics())
+    except requests.RequestException as exc:
+        return jsonify({"error": "RabbitMQ Management API bilan bog'lanib bo'lmadi", "detail": str(exc)}), 503
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

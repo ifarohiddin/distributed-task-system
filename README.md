@@ -8,7 +8,8 @@
 - 🔁 Xatolikda qayta urinish (exponential backoff: 1s, 2s, 4s; maks. 3 marta)
 - ☠️ Dead-letter exchange / queue (bajarilmagan vazifalar uchun)
 - ✅ Publisher confirm va xabarlarni `zlib` bilan siqish
-- 📈 Flask'da yozilgan monitoring endpointi (`/metrics`)
+- 📈 Monitoring (`/metrics`): navbatlar uzunligi, ishchilar soni va soniyasiga bajarilgan vazifalar (RabbitMQ Management API'dan)
+- ♻️ O'lik xabarlarni asl navbatiga qaytarish (`TaskClient.retry_dead_letters()`)
 - 🐳 Docker Compose bilan bir buyruqda ishga tushadi (RabbitMQ + producer + 2 worker)
 
 ## 🛠️ Texnologiyalar
@@ -43,7 +44,24 @@ from src.client import TaskClient
 
 client = TaskClient()
 task_id = client.submit_task("image_processing", "resize", {"image": "sample.jpg"}, priority=8)
-metrics = client.get_metrics()
+metrics = client.get_metrics()        # {"queues": {...}, "workers": 2, "processed_per_second": 1.5}
+client.retry_dead_letters()           # dead_letter_queue dagi vazifalarni qayta navbatga qo'yadi
+```
+
+Kodni `distributed_task_system/` papkasidan ishga tushiring. Komponentlar paket sifatida ishga tushadi:
+
+```bash
+python -m src.producer    # bitta namunaviy vazifa yuboradi
+python -m src.worker      # image_processing navbatini tinglaydi
+python -m src.monitor     # http://localhost:5000/metrics va /health
+```
+
+### Testlar
+
+```bash
+pip install -r requirements.txt
+pytest                          # 37 ta unit test, RabbitMQ shart emas (pika soxta obyektlar bilan almashtirilgan)
+python tests/e2e_rabbitmq.py    # haqiqiy RabbitMQ bilan to'liq oqim (xatolik → retry → DLQ → qayta yuborish → metrikalar)
 ```
 
 ## 📁 Tuzilma
@@ -53,10 +71,12 @@ distributed_task_system/
 ├── src/
 │   ├── producer.py   # vazifalarni navbatga yuboradi
 │   ├── worker.py     # vazifalarni bajaradi, retry/DLQ
-│   ├── client.py     # TaskClient
-│   ├── monitor.py    # Flask /metrics
-│   ├── config.py
-│   └── utils.py
+│   ├── client.py     # TaskClient (yuborish, DLQ'dan qaytarish, metrikalar)
+│   ├── metrics.py    # RabbitMQ Management API'dan metrikalar
+│   ├── monitor.py    # Flask: /metrics, /health
+│   ├── rabbit.py     # ulanish va navbatlarni e'lon qilish
+│   └── config.py
+├── tests/            # pytest unit testlari + e2e_rabbitmq.py
 ├── docs/design.md
 ├── Dockerfile
 └── docker-compose.yml
@@ -81,9 +101,9 @@ python order_creator.py
 
 ## 🌱 Rejalar
 
-- [ ] `monitor.py` metrikalarini haqiqiy RabbitMQ Management API'dan olish
+- [x] Monitoring metrikalari haqiqiy RabbitMQ Management API'dan olinadi
 - [x] RabbitMQ login/paroli muhit o'zgaruvchilaridan o'qiladi (`RABBITMQ_USER`, `RABBITMQ_PASS`, `RABBITMQ_PORT`)
-- [ ] `producer`/`worker` uchun `pytest` testlari yozish (hozircha testlar yo'q)
+- [x] `pytest` unit testlari va haqiqiy RabbitMQ bilan e2e skript
 - [ ] GitHub Actions bilan testlarni avtomatlashtirish
 
 ## 👤 Muallif

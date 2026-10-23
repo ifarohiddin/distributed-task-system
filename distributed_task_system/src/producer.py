@@ -1,61 +1,60 @@
-import pika
 import json
 import uuid
 import zlib
-from config import RABBITMQ_HOST, RABBITMQ_PORT, RABBITMQ_USER, RABBITMQ_PASS, EXCHANGE_NAME, TASK_QUEUES, DEAD_LETTER_EXCHANGE
+
+import pika
+
+from src.config import EXCHANGE_NAME, TASK_QUEUES
+from src import rabbit
+
+
+def build_task(task_type, payload, priority=5) -> dict:
+    return {
+        "task_id": str(uuid.uuid4()),
+        "type": task_type,
+        "payload": payload,
+        "priority": priority,
+        "retry_count": 0,
+    }
+
+
+def encode_task(task: dict) -> bytes:
+    """Vazifa JSON ko'rinishida `zlib` bilan siqiladi."""
+    return zlib.compress(json.dumps(task).encode())
+
 
 class Producer:
     def __init__(self):
-        credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT, credentials=credentials)
-        )
+        self.connection = rabbit.connect()
         self.channel = self.connection.channel()
-        self.channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type="direct")
-        self.channel.exchange_declare(exchange=DEAD_LETTER_EXCHANGE, exchange_type="fanout")
+        rabbit.declare_exchanges(self.channel)
         self.channel.confirm_delivery()  # Nashriyotchi tasdiqlari
 
-        # Navbatlarni sozlash
-        for queue, config in TASK_QUEUES.items():
-            args = {
-                "x-max-priority": config["max_priority"],
-                "x-dead-letter-exchange": DEAD_LETTER_EXCHANGE  # O‘lik xabarlar almashuvi
-            } if config["priority"] else {"x-dead-letter-exchange": DEAD_LETTER_EXCHANGE}
-            try:
-                self.channel.queue_declare(queue=queue, durable=True, arguments=args)
-                self.channel.queue_bind(queue=queue, exchange=EXCHANGE_NAME, routing_key=queue)
-            except pika.exceptions.ChannelClosedByBroker as e:
-                print(f"Queue {queue} already exists with different args: {e}. Continuing...")
+        for queue in TASK_QUEUES:
+            if rabbit.declare_task_queue(self.channel, queue) is None:
                 self.channel = self.connection.channel()  # Kanalni qayta ochish
                 self.channel.confirm_delivery()
 
-    def submit_task(self, queue, task_type, payload, priority=5):
-        task = {
-            "task_id": str(uuid.uuid4()),
-            "type": task_type,
-            "payload": payload,
-            "priority": priority,
-            "retry_count": 0
-        }
-        message = json.dumps(task)
-        compressed_message = zlib.compress(message.encode())  # Siqish
+    def submit_task(self, queue, task_type, payload, priority=5) -> str:
+        if queue not in TASK_QUEUES:
+            raise ValueError(f"Noma'lum navbat: {queue!r}. Mavjud navbatlar: {sorted(TASK_QUEUES)}")
+        task = build_task(task_type, payload, priority)
         try:
             self.channel.basic_publish(
                 exchange=EXCHANGE_NAME,
                 routing_key=queue,
-                body=compressed_message,
-                properties=pika.BasicProperties(
-                    delivery_mode=2,  # Doimiy xabar
-                    priority=priority
-                )
+                body=encode_task(task),
+                properties=pika.BasicProperties(delivery_mode=2, priority=priority),  # Doimiy xabar
             )
-            print(f"Task {task['task_id']} sent to {queue}")
-        except Exception as e:
-            print(f"Failed to send task: {e}")
+        except Exception as exc:
+            print(f"Failed to send task: {exc}")
             raise
+        print(f"Task {task['task_id']} sent to {queue}")
+        return task["task_id"]
 
     def close(self):
         self.connection.close()
+
 
 if __name__ == "__main__":
     producer = Producer()
